@@ -34,7 +34,7 @@ func myHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Lowercase and remove bookend "/" if it exist
+	// Lowercase and remove bookend "/" if present
 	endpoint = strings.ToLower(endpoint)
 	if strings.HasPrefix(endpoint, "/") {
 		endpoint = endpoint[1:]
@@ -43,27 +43,23 @@ func myHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if strings.HasSuffix(endpoint, "/") {
+		if len(endpoint) == 1 {
+			fail(w)
+			return
+		}
+
 		endpoint = endpoint[:len(endpoint)-1]
 	}
 
 	aEndpoint := strings.Split(endpoint, "/")
-	fmt.Println("testing split", aEndpoint[0])
-	fmt.Println("testing split", aEndpoint)
 
-	fmt.Println("testing slice", len(endpoint))
-	// fmt.Println(endpoint[:8])
-
-	// if len(endpoint) == 8 && endpoint[:8] == "/liquors" {
-	// 	fmt.Println("-")
-	// }
-
-	// var xo string = endpoint[0]
-
+	// All valid use starts with /liquors
 	if aEndpoint[0] != "liquors" {
 		fail(w)
 		return
 	}
 
+	// Max valid
 	if len(aEndpoint) > 2 {
 		fail(w)
 		return
@@ -75,11 +71,40 @@ func myHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	switch aEndpoint[1] {
-	case "liquors":
-		fmt.Println("Case liquors")
-		return
+	fmt.Println("we have two parameters")
+	fmt.Println("Lets see about a map match")
+
+	inStock := mLiquors[aEndpoint[1]]
+	fmt.Println("From map", inStock)
+
+	/*
+		Now we return aEndpoint[1] : requestedInventor
+		..right?
+	*/
+
+	returnInventory := sLiquors{
+		Type:   aEndpoint[1],
+		Amount: inStock,
 	}
+
+	fmt.Println("Print returnInventory", returnInventory)
+
+	liquorsJson, _ := json.Marshal(returnInventory)
+
+	fmt.Fprintf(w, string(liquorsJson))
+	return
+
+	// if liquourRequest {
+	// 	fmt.Println("Need to look this up")
+	// } else {
+	// 	fmt.Println("Tell them we have zero")
+	// }
+
+	// switch aEndpoint[1] {
+	// case "liquors":
+	// 	fmt.Println("Case liquors")
+	// 	return
+	// }
 
 }
 
