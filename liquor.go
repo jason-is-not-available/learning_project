@@ -19,6 +19,35 @@ type sLiquors struct {
 
 var mLiquors = map[string]int{"bourbon": 8, "vodka": 2}
 
+/*
+This looks like a mess.
+Should I make more funtions that get called from here?
+If so.. what should I move out of here?
+Maybe a: string whatAreWeDoing(endpoint, method) function?
+Then this would just be:
+next := whatAreWeDoing(e, m)
+switch next {
+case: this
+
+	liquors()
+
+case: that
+
+		postWhatever()
+	}
+
+..or is that basically what this is
+
+Also, return isnt doing exactly what I want
+Its returning to server.go, going through that, and then
+starting over again at the top of this function with the
+request url set to /favicon.ico
+
+Then it runs down and hits a fail condition.
+I could make logic to deal specifically with favicon.ico,
+but that seems stupid. I don't get what its doing, or why.
+Reproduce by triggering the fail on line 76
+*/
 func myHandler(w http.ResponseWriter, req *http.Request) {
 	// fmt.Println("We got to my handler")
 
@@ -76,11 +105,6 @@ func myHandler(w http.ResponseWriter, req *http.Request) {
 
 	inStock := mLiquors[aEndpoint[1]]
 	fmt.Println("From map", inStock)
-
-	/*
-		Now we return aEndpoint[1] : requestedInventor
-		..right?
-	*/
 
 	returnInventory := sLiquors{
 		Type:   aEndpoint[1],
