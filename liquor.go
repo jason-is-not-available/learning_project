@@ -20,31 +20,77 @@ type sLiquors struct {
 var mLiquors = map[string]int{"bourbon": 8, "vodka": 2}
 
 func myHandler(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("We got to my handler")
+	// fmt.Println("We got to my handler")
 
 	endpoint := req.URL.Path
 	method := req.Method
 
+	// please let me compile
 	fmt.Println("Method: ", method)
 
-	// Lowercase and remove trailing "/" if it exists
+	// handle /
+	if len(endpoint) == 1 {
+		fail(w)
+		return
+	}
+
+	// Lowercase and remove bookend "/" if it exist
 	endpoint = strings.ToLower(endpoint)
+	if strings.HasPrefix(endpoint, "/") {
+		endpoint = endpoint[1:]
+	} else {
+		fmt.Println("I dont think this should ever happen.")
+	}
+
 	if strings.HasSuffix(endpoint, "/") {
 		endpoint = endpoint[:len(endpoint)-1]
 	}
 
+	aEndpoint := strings.Split(endpoint, "/")
+	fmt.Println("testing split", aEndpoint[0])
+	fmt.Println("testing split", aEndpoint)
+
 	fmt.Println("testing slice", len(endpoint))
-	fmt.Println(endpoint[:8])
+	// fmt.Println(endpoint[:8])
 
-	if len(endpoint) == 8 && endpoint[:8] == "/liquors" {
-		fmt.Println("OMG LIQUOUROURSS")
+	// if len(endpoint) == 8 && endpoint[:8] == "/liquors" {
+	// 	fmt.Println("-")
+	// }
+
+	// var xo string = endpoint[0]
+
+	if aEndpoint[0] != "liquors" {
+		fail(w)
+		return
 	}
 
-	switch endpoint {
-	case "/liquors":
+	if len(aEndpoint) > 2 {
+		fail(w)
+		return
+	}
+
+	if len(aEndpoint) == 1 {
+		fmt.Println("We're going to /liquors")
+		liquors(w, req)
+		return
+	}
+
+	switch aEndpoint[1] {
+	case "liquors":
 		fmt.Println("Case liquors")
-
+		return
 	}
+
+}
+
+func fail(w http.ResponseWriter) {
+
+	fmt.Println("You fucked up. Try again")
+	derp := "You fucked up. Try again"
+
+	// derpJson, _ := json.Marshal(derp)
+
+	fmt.Fprintf(w, derp)
 
 }
 
@@ -70,11 +116,11 @@ func liquors(w http.ResponseWriter, req *http.Request) {
 	// This seems to do noting
 	fmt.Println(liquorSlice)
 
-	println(req.URL.Path)
+	fmt.Println(req.URL.Path)
 
 	whatis := req.URL.Path
-	println(whatis)
-	println(reflect.TypeOf(liquorSlice).String())
+	fmt.Println(whatis)
+	fmt.Println(reflect.TypeOf(liquorSlice).String())
 
 	liquorsJson, _ := json.Marshal(liquorSlice)
 
