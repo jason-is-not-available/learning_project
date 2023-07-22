@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
@@ -59,7 +60,7 @@ func myHandler(w http.ResponseWriter, req *http.Request) {
 
 	// handle /
 	if len(endpoint) == 1 {
-		fail(w)
+		fail(w, "/ detected. Not acceptable")
 		return
 	}
 
@@ -73,7 +74,7 @@ func myHandler(w http.ResponseWriter, req *http.Request) {
 
 	if strings.HasSuffix(endpoint, "/") {
 		if len(endpoint) == 1 {
-			fail(w)
+			fail(w, "/ detected. Not acceptable")
 			return
 		}
 
@@ -84,45 +85,36 @@ func myHandler(w http.ResponseWriter, req *http.Request) {
 
 	// All valid use starts with /liquors
 	if aEndpoint[0] != "liquors" {
-		fail(w)
+		fail(w, "Another error")
 		return
 	}
 
 	// Max valid
 	if len(aEndpoint) > 2 {
-		fail(w)
+		fail(w, "too many arguments")
 		return
 	}
 
-	if len(aEndpoint) == 1 {
+	if len(aEndpoint) == 1 && aEndpoint[0] == "liquors" {
 		fmt.Println("We're going to /liquors")
 		liquors(w, req)
 		return
 	}
 
-	fmt.Println("we have two parameters")
-	fmt.Println("Lets see about a map match")
-
-	inStock := mLiquors[aEndpoint[1]]
-	fmt.Println("From map", inStock)
-
-	returnInventory := sLiquors{
-		Type:   aEndpoint[1],
-		Amount: inStock,
+	if aEndpoint[1] == "add" {
+		fmt.Println("Going to add")
+		// addLiquors(w, req, aEndpoint[1])
+		return
 	}
 
-	fmt.Println("Print returnInventory", returnInventory)
+	if aEndpoint[1] == "remove" {
+		fmt.Println("Going to remove")
+		// removeLiquors(w, req, aEndpoint[1])
+		return
+	}
 
-	liquorsJson, _ := json.Marshal(returnInventory)
-
-	fmt.Fprintf(w, string(liquorsJson))
-	return
-
-	// if liquourRequest {
-	// 	fmt.Println("Need to look this up")
-	// } else {
-	// 	fmt.Println("Tell them we have zero")
-	// }
+	// All thats left is /liquors/type
+	liquorsType(w, req, aEndpoint[1])
 
 	// switch aEndpoint[1] {
 	// case "liquors":
@@ -132,20 +124,41 @@ func myHandler(w http.ResponseWriter, req *http.Request) {
 
 }
 
-func fail(w http.ResponseWriter) {
+func fail(w http.ResponseWriter, err string) {
 
-	fmt.Println("You fucked up. Try again")
-	derp := "You fucked up. Try again"
+	fmt.Println("You fucked up. Do it right next time")
+	// derp := "You fucked up. Do it right next time"
 
 	// derpJson, _ := json.Marshal(derp)
 
-	fmt.Fprintf(w, derp)
+	fmt.Fprintf(w, err)
 
 }
 
 // Returns the entire map of liquors and their quantities
 // in JSON format.
+/*
+
+This one will now handle both /liquors and /liquors/TYPE
+Take some logic from myhander.
+Or use myhandler to decide what happens here
+
+
+
+*/
 func liquors(w http.ResponseWriter, req *http.Request) {
+
+	if req.Method != "GET" {
+		fmt.Println("fail")
+
+		// fail
+
+	}
+
+	/*
+		uri
+		https://stackoverflow.com/questions/31480710/validate-url-with-standard-package-in-go
+	*/
 
 	var liquorSlice []sLiquors
 
@@ -156,10 +169,6 @@ func liquors(w http.ResponseWriter, req *http.Request) {
 			Amount: value,
 		}
 		liquorSlice = append(liquorSlice, item)
-		//fmt.Println(item)
-		//testJson, _ := json.Marshal(item)
-		//fmt.Println(string(testJson))
-		//myLiquors.PushBack(item)
 	}
 
 	// This seems to do noting
@@ -177,11 +186,63 @@ func liquors(w http.ResponseWriter, req *http.Request) {
 
 }
 
+func liquorsType(w http.ResponseWriter, req *http.Request, liquorType string) {
+
+	inStock := mLiquors[liquorType]
+
+	fmt.Println(inStock)
+
+	returnInventory := sLiquors{
+		Type:   liquorType,
+		Amount: inStock,
+	}
+
+	fmt.Println("Print returnInventory", returnInventory)
+
+	liquorsJson, _ := json.Marshal(returnInventory)
+
+	fmt.Fprintf(w, string(liquorsJson))
+
+	return
+
+}
+
+/*
+This endpoint should receive a json object and add the amount to the
+existing amount (or create the new entry). An example POST is below.
+The response should be the corresponsing current total amount.*/
+
+func addLiquors(w http.ResponseWriter, req *http.Request) {
+
+	body, _ := ioutil.ReadAll(req.Body)
+	req.Body.Close()
+
+	var addRequest sLiquors
+
+	json.Unmarshal([]byte(body), &addRequest)
+
+	mLiquors[addRequest.Type] += addRequest.Amount
+
+	addRequest.Amount = mLiquors[addRequest.Type]
+
+	liquorsJson, _ := json.Marshal(addRequest)
+	fmt.Fprintf(w, string(liquorsJson))
+
+	return
+}
+
+func removeLiquors(w http.ResponseWriter, req *http.Request) {
+	// fmt.Println("Made it to removeLiquors with: ", removeLiquor)
+	fmt.Println("Made it to removeLiquors")
+}
+
 func main() {
 
 	// Identify the endpoint and decide what to do with it
-
-	http.HandleFunc("/", myHandler)
+	// http.HandleFunc("/", myHandler)
+	http.HandleFunc("/liquors/add", addLiquors)
+	http.HandleFunc("/liquors/remove", removeLiquors)
+	http.HandleFunc("/liquors", liquors)
 
 	// Keep this around
 	// http.HandleFunc("/liquors", liquors)
