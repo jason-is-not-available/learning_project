@@ -18,7 +18,7 @@ type sLiquors struct {
 	Amount int
 }
 
-var mLiquors = map[string]int{"bourbon": 8, "vodka": 2}
+var mLiquors = map[string]int{"bourbon": 3, "vodka": 2}
 
 /*
 This looks like a mess.
@@ -126,12 +126,11 @@ func myHandler(w http.ResponseWriter, req *http.Request) {
 
 func fail(w http.ResponseWriter, err string) {
 
-	fmt.Println("You fucked up. Do it right next time")
-	// derp := "You fucked up. Do it right next time"
+	// fmt.Println("You fucked up. Do it right next time")
 
-	// derpJson, _ := json.Marshal(derp)
+	w.WriteHeader(http.StatusInternalServerError)
 
-	fmt.Fprintf(w, err)
+	fmt.Fprint(w, err)
 
 }
 
@@ -149,10 +148,13 @@ Or use myhandler to decide what happens here
 func liquors(w http.ResponseWriter, req *http.Request) {
 
 	if req.Method != "GET" {
-		fmt.Println("fail")
 
-		// fail
+		err := "This only works with GET"
 
+		w.WriteHeader(http.StatusInternalServerError)
+
+		fmt.Fprint(w, err)
+		return
 	}
 
 	/*
@@ -188,6 +190,16 @@ func liquors(w http.ResponseWriter, req *http.Request) {
 
 func liquorsType(w http.ResponseWriter, req *http.Request, liquorType string) {
 
+	if req.Method != "GET" {
+
+		err := "This only works with GET"
+
+		w.WriteHeader(http.StatusInternalServerError)
+
+		fmt.Fprint(w, err)
+		return
+	}
+
 	inStock := mLiquors[liquorType]
 
 	fmt.Println(inStock)
@@ -213,6 +225,15 @@ existing amount (or create the new entry). An example POST is below.
 The response should be the corresponsing current total amount.*/
 
 func addLiquors(w http.ResponseWriter, req *http.Request) {
+	if req.Method != "POST" {
+
+		err := "This only works with POST"
+
+		w.WriteHeader(http.StatusInternalServerError)
+
+		fmt.Fprint(w, err)
+		return
+	}
 
 	body, _ := ioutil.ReadAll(req.Body)
 	req.Body.Close()
@@ -228,12 +249,73 @@ func addLiquors(w http.ResponseWriter, req *http.Request) {
 	liquorsJson, _ := json.Marshal(addRequest)
 	fmt.Fprintf(w, string(liquorsJson))
 
-	return
 }
 
+/*
+This endpoint should receive a json object and remove the amount from the existing amount.
+If the number requested is more than the current total, a 500 error should be thrown.
+
+An example POST is below. The response should be the corresponsing current total amount.
+
+```
+POST /liquors/remove {"type": "bourbon", "amount": 4}
+
+Response (200):
+
+{"type": "bourbon", "amount": 4}
+
+OR
+
+Response (500):
+
+"Not Enough Liquor"
+*/
+
 func removeLiquors(w http.ResponseWriter, req *http.Request) {
-	// fmt.Println("Made it to removeLiquors with: ", removeLiquor)
 	fmt.Println("Made it to removeLiquors")
+	if req.Method != "POST" {
+
+		err := "This only works with POST"
+
+		w.WriteHeader(http.StatusInternalServerError)
+
+		fmt.Fprint(w, err)
+		return
+	}
+
+	body, _ := ioutil.ReadAll(req.Body)
+	req.Body.Close()
+
+	var removeRequest sLiquors
+
+	json.Unmarshal([]byte(body), &removeRequest)
+
+	quantity, exist := mLiquors[removeRequest.Type]
+
+	if !exist || (quantity < removeRequest.Amount) {
+		// fmt.Println("We don't have any", removeRequest.Type)
+		// return 500 + message
+
+		w.WriteHeader(http.StatusInternalServerError)
+		// w.Write([]byte("Not Enough Liquor"))
+
+		fmt.Fprint(w, string("Not Enough Liquor"))
+		return
+
+	}
+
+	/*
+		It does exist and we do have enough
+	*/
+
+	mLiquors[removeRequest.Type] = mLiquors[removeRequest.Type] - removeRequest.Amount
+	fmt.Println("Now we have", removeRequest.Type, mLiquors[removeRequest.Type])
+
+	removeRequest.Amount = mLiquors[removeRequest.Type]
+
+	liquorsJson, _ := json.Marshal(removeRequest)
+	fmt.Fprintf(w, string(liquorsJson))
+
 }
 
 func main() {
