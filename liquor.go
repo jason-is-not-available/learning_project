@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"reflect"
 	"strings"
 )
 
@@ -50,7 +49,6 @@ but that seems stupid. I don't get what its doing, or why.
 Reproduce by triggering the fail on line 76
 */
 func myHandler(w http.ResponseWriter, req *http.Request) {
-	// fmt.Println("We got to my handler")
 
 	endpoint := req.URL.Path
 	method := req.Method
@@ -64,8 +62,9 @@ func myHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Lowercase and remove bookend "/" if present
 	endpoint = strings.ToLower(endpoint)
+
+	// Deal with ////
 	if strings.HasPrefix(endpoint, "/") {
 		endpoint = endpoint[1:]
 	} else {
@@ -85,7 +84,7 @@ func myHandler(w http.ResponseWriter, req *http.Request) {
 
 	// All valid use starts with /liquors
 	if aEndpoint[0] != "liquors" {
-		fail(w, "Another error")
+		fail(w, "All valid use starts with /liquors")
 		return
 	}
 
@@ -126,8 +125,6 @@ func myHandler(w http.ResponseWriter, req *http.Request) {
 
 func fail(w http.ResponseWriter, err string) {
 
-	// fmt.Println("You fucked up. Do it right next time")
-
 	w.WriteHeader(http.StatusInternalServerError)
 
 	fmt.Fprint(w, err)
@@ -148,18 +145,21 @@ Or use myhandler to decide what happens here
 func liquors(w http.ResponseWriter, req *http.Request) {
 
 	if req.Method != "GET" {
-
 		err := "This only works with GET"
-
-		w.WriteHeader(http.StatusInternalServerError)
-
-		fmt.Fprint(w, err)
+		fail(w, err)
 		return
 	}
 
 	/*
 		uri
 		https://stackoverflow.com/questions/31480710/validate-url-with-standard-package-in-go
+	*/
+
+	/*
+
+	   call myhandler here?
+	   No. call that from main. Then that calls this
+
 	*/
 
 	var liquorSlice []sLiquors
@@ -173,30 +173,18 @@ func liquors(w http.ResponseWriter, req *http.Request) {
 		liquorSlice = append(liquorSlice, item)
 	}
 
-	// This seems to do noting
-	fmt.Println(liquorSlice)
-
-	fmt.Println(req.URL.Path)
-
-	whatis := req.URL.Path
-	fmt.Println(whatis)
-	fmt.Println(reflect.TypeOf(liquorSlice).String())
-
 	liquorsJson, _ := json.Marshal(liquorSlice)
 
-	fmt.Fprintf(w, string(liquorsJson))
-
+	fmt.Fprint(w, string(liquorsJson))
 }
 
 func liquorsType(w http.ResponseWriter, req *http.Request, liquorType string) {
 
+	// Might also want to check for an empty string here?
 	if req.Method != "GET" {
 
 		err := "This only works with GET"
-
-		w.WriteHeader(http.StatusInternalServerError)
-
-		fmt.Fprint(w, err)
+		fail(w, err)
 		return
 	}
 
@@ -228,10 +216,7 @@ func addLiquors(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "POST" {
 
 		err := "This only works with POST"
-
-		w.WriteHeader(http.StatusInternalServerError)
-
-		fmt.Fprint(w, err)
+		fail(w, err)
 		return
 	}
 
@@ -248,7 +233,6 @@ func addLiquors(w http.ResponseWriter, req *http.Request) {
 
 	liquorsJson, _ := json.Marshal(addRequest)
 	fmt.Fprintf(w, string(liquorsJson))
-
 }
 
 /*
@@ -276,10 +260,7 @@ func removeLiquors(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "POST" {
 
 		err := "This only works with POST"
-
-		w.WriteHeader(http.StatusInternalServerError)
-
-		fmt.Fprint(w, err)
+		fail(w, err)
 		return
 	}
 
@@ -324,7 +305,9 @@ func main() {
 	// http.HandleFunc("/", myHandler)
 	http.HandleFunc("/liquors/add", addLiquors)
 	http.HandleFunc("/liquors/remove", removeLiquors)
-	http.HandleFunc("/liquors", liquors)
+	http.HandleFunc("/liquors/", myHandler)
+
+	http.HandleFunc("/liquors", myHandler)
 
 	// Keep this around
 	// http.HandleFunc("/liquors", liquors)
