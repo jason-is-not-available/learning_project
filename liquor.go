@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"strings"
 )
@@ -48,9 +49,10 @@ I could make logic to deal specifically with favicon.ico,
 but that seems stupid. I don't get what its doing, or why.
 Reproduce by triggering the fail on line 76
 */
-func myHandler(w http.ResponseWriter, req *http.Request) {
+func liquorsHandler(w http.ResponseWriter, req *http.Request) {
 
 	endpoint := req.URL.Path
+
 	method := req.Method
 
 	// please let me compile
@@ -123,6 +125,16 @@ func myHandler(w http.ResponseWriter, req *http.Request) {
 
 }
 
+// func checkNegative(w http.ResponseWriter, i int) bool {
+
+// 	if math.Signbit(float64(i)) {
+// 		err := "Don't be that guy"
+// 		fail(w, err)
+
+// 	}
+// 	return true
+// }
+
 func fail(w http.ResponseWriter, err string) {
 
 	w.WriteHeader(http.StatusInternalServerError)
@@ -133,14 +145,11 @@ func fail(w http.ResponseWriter, err string) {
 
 // Returns the entire map of liquors and their quantities
 // in JSON format.
-/*
 
+/*
 This one will now handle both /liquors and /liquors/TYPE
 Take some logic from myhander.
 Or use myhandler to decide what happens here
-
-
-
 */
 func liquors(w http.ResponseWriter, req *http.Request) {
 
@@ -203,8 +212,6 @@ func liquorsType(w http.ResponseWriter, req *http.Request, liquorType string) {
 
 	fmt.Fprintf(w, string(liquorsJson))
 
-	return
-
 }
 
 /*
@@ -213,8 +220,8 @@ existing amount (or create the new entry). An example POST is below.
 The response should be the corresponsing current total amount.*/
 
 func addLiquors(w http.ResponseWriter, req *http.Request) {
-	if req.Method != "POST" {
 
+	if req.Method != "POST" {
 		err := "This only works with POST"
 		fail(w, err)
 		return
@@ -227,12 +234,18 @@ func addLiquors(w http.ResponseWriter, req *http.Request) {
 
 	json.Unmarshal([]byte(body), &addRequest)
 
+	if math.Signbit(float64(addRequest.Amount)) {
+		err := "Don't be that guy"
+		fail(w, err)
+		return
+	}
+
 	mLiquors[addRequest.Type] += addRequest.Amount
 
 	addRequest.Amount = mLiquors[addRequest.Type]
 
 	liquorsJson, _ := json.Marshal(addRequest)
-	fmt.Fprintf(w, string(liquorsJson))
+	fmt.Fprint(w, string(liquorsJson))
 }
 
 /*
@@ -271,6 +284,13 @@ func removeLiquors(w http.ResponseWriter, req *http.Request) {
 
 	json.Unmarshal([]byte(body), &removeRequest)
 
+	// check for negatives
+	if math.Signbit(float64(removeRequest.Amount)) {
+		err := "Don't be that guy"
+		fail(w, err)
+		return
+	}
+
 	quantity, exist := mLiquors[removeRequest.Type]
 
 	if !exist || (quantity < removeRequest.Amount) {
@@ -302,15 +322,9 @@ func removeLiquors(w http.ResponseWriter, req *http.Request) {
 func main() {
 
 	// Identify the endpoint and decide what to do with it
-	// http.HandleFunc("/", myHandler)
 	http.HandleFunc("/liquors/add", addLiquors)
 	http.HandleFunc("/liquors/remove", removeLiquors)
-	http.HandleFunc("/liquors/", myHandler)
-
-	http.HandleFunc("/liquors", myHandler)
-
-	// Keep this around
-	// http.HandleFunc("/liquors", liquors)
+	http.HandleFunc("/liquors/", liquorsHandler)
 
 	// Finally, we call the `ListenAndServe` with the port
 	// and a handler. `nil` tells it to use the default
