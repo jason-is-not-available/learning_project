@@ -125,15 +125,15 @@ func liquorsHandler(w http.ResponseWriter, req *http.Request) {
 
 }
 
-// func checkNegative(w http.ResponseWriter, i int) bool {
+func isNegative(w http.ResponseWriter, i int) bool {
 
-// 	if math.Signbit(float64(i)) {
-// 		err := "Don't be that guy"
-// 		fail(w, err)
-
-// 	}
-// 	return true
-// }
+	if math.Signbit(float64(i)) {
+		err := "Don't be that guy"
+		fail(w, err)
+		return true
+	}
+	return false
+}
 
 func fail(w http.ResponseWriter, err string) {
 
@@ -210,7 +210,7 @@ func liquorsType(w http.ResponseWriter, req *http.Request, liquorType string) {
 
 	liquorsJson, _ := json.Marshal(returnInventory)
 
-	fmt.Fprintf(w, string(liquorsJson))
+	fmt.Fprint(w, string(liquorsJson))
 
 }
 
@@ -234,11 +234,15 @@ func addLiquors(w http.ResponseWriter, req *http.Request) {
 
 	json.Unmarshal([]byte(body), &addRequest)
 
-	if math.Signbit(float64(addRequest.Amount)) {
-		err := "Don't be that guy"
-		fail(w, err)
+	if isNegative(w, addRequest.Amount) {
 		return
 	}
+
+	// if math.Signbit(float64(addRequest.Amount)) {
+	// 	err := "Don't be that guy"
+	// 	fail(w, err)
+	// 	return
+	// }
 
 	mLiquors[addRequest.Type] += addRequest.Amount
 
@@ -284,12 +288,16 @@ func removeLiquors(w http.ResponseWriter, req *http.Request) {
 
 	json.Unmarshal([]byte(body), &removeRequest)
 
-	// check for negatives
-	if math.Signbit(float64(removeRequest.Amount)) {
-		err := "Don't be that guy"
-		fail(w, err)
+	if isNegative(w, removeRequest.Amount) {
 		return
 	}
+
+	// // check for negatives
+	// if math.Signbit(float64(removeRequest.Amount)) {
+	// 	err := "Don't be that guy"
+	// 	fail(w, err)
+	// 	return
+	// }
 
 	quantity, exist := mLiquors[removeRequest.Type]
 
@@ -315,8 +323,7 @@ func removeLiquors(w http.ResponseWriter, req *http.Request) {
 	removeRequest.Amount = mLiquors[removeRequest.Type]
 
 	liquorsJson, _ := json.Marshal(removeRequest)
-	fmt.Fprintf(w, string(liquorsJson))
-
+	fmt.Fprint(w, string(liquorsJson))
 }
 
 func main() {
