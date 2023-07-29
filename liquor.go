@@ -51,8 +51,11 @@ Reproduce by triggering the fail on line 76
 */
 func liquorsHandler(w http.ResponseWriter, req *http.Request) {
 
-	endpoint := req.URL.Path
+	if !(isGet(w, req)) {
+		return
+	}
 
+	endpoint := req.URL.Path
 	method := req.Method
 
 	// please let me compile
@@ -117,11 +120,15 @@ func liquorsHandler(w http.ResponseWriter, req *http.Request) {
 	// All thats left is /liquors/type
 	liquorsType(w, req, aEndpoint[1])
 
-	// switch aEndpoint[1] {
-	// case "liquors":
-	// 	fmt.Println("Case liquors")
-	// 	return
-	// }
+}
+
+func isGet(w http.ResponseWriter, req *http.Request) bool {
+	if req.Method != "GET" {
+		err := "This only works with GET"
+		fail(w, err)
+		return false
+	}
+	return true
 
 }
 
@@ -162,6 +169,8 @@ func liquors(w http.ResponseWriter, req *http.Request) {
 	/*
 		uri
 		https://stackoverflow.com/questions/31480710/validate-url-with-standard-package-in-go
+		https://pkg.go.dev/net/url
+
 	*/
 
 	/*
