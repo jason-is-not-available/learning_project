@@ -1,14 +1,22 @@
-// Writing a basic HTTP server is easy using the
-// `net/http` package.
+/*
+Guide for gin
+https://earthly.dev/blog/golang-gin-framework/
+
+
+*/
+
 package main
 
 import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math"
 	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 // Probably dont want a struct for this, but we'll start here
@@ -335,17 +343,57 @@ func removeLiquors(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprint(w, string(liquorsJson))
 }
 
+func ginLiquors(c *gin.Context) {
+
+	c.String(http.StatusOK, "Made it to ginLiquors")
+
+}
+
+func ginLiquorsType(c *gin.Context) {
+	/*
+		/liquors/add and /remove can get here if GET
+	*/
+
+	c.String(http.StatusOK, "Made it to ginLiquorsType")
+
+}
+
+func ginAddLiquors(c *gin.Context) {
+
+	c.String(http.StatusOK, "Made it to ginAddLiquors")
+
+}
+
+func ginRemoveLiquors(c *gin.Context) {
+
+	c.String(http.StatusOK, "Made it to ginRemoveLiquors")
+
+}
+
 func main() {
 
-	// Identify the endpoint and decide what to do with it
-	http.HandleFunc("/liquors/add", addLiquors)
-	http.HandleFunc("/liquors/remove", removeLiquors)
-	http.HandleFunc("/liquors/", liquorsHandler)
+	router := gin.Default()
 
-	// Finally, we call the `ListenAndServe` with the port
-	// and a handler. `nil` tells it to use the default
-	// router we've just set up.
-	fmt.Println("Starting Server on 8090...")
-	http.ListenAndServe(":8090", nil)
+	router.GET("/liquors", ginLiquors)
+	router.GET("/liquors/:type", ginLiquorsType)
+	router.POST("/liquors/add", ginAddLiquors)
+	router.POST("/liquors/remove", ginRemoveLiquors)
+
+	// https: //chenyitian.gitbooks.io/gin-web-framework/content/docs/8.html
+
+	log.Fatal(router.Run(":8090"))
+
+	/*
+		http.HandleFunc("/liquors/add", addLiquors)
+		http.HandleFunc("/liquors/remove", removeLiquors)
+		http.HandleFunc("/liquors/", liquorsHandler)
+		http.HandleFunc("/liquors", liquorsHandler)
+		fmt.Println("Starting Server on 8090...")
+		http.ListenAndServe(":8090", nil)
+	*/
+
+	/*
+		https://github.com/gin-gonic/gin#runnint-gin
+	*/
 
 }
