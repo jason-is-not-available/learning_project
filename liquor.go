@@ -21,12 +21,12 @@ import (
 
 // Probably dont want a struct for this, but we'll start here
 // might actually have use for it
-type sLiquors struct {
+type item struct {
 	Type   string
 	Amount int
 }
 
-var mLiquors = map[string]int{"bourbon": 3, "vodka": 2}
+var inventoryMap = map[string]int{"bourbon": 3, "vodka": 2, "nice bourbon": 1}
 
 /*
 This looks like a mess.
@@ -71,7 +71,7 @@ func liquorsHandler(w http.ResponseWriter, req *http.Request) {
 
 	// handle /
 	if len(endpoint) == 1 {
-		fail(w, "/ detected. Not acceptable")
+		oldFail(w, "/ detected. Not acceptable")
 		return
 	}
 
@@ -86,7 +86,7 @@ func liquorsHandler(w http.ResponseWriter, req *http.Request) {
 
 	if strings.HasSuffix(endpoint, "/") {
 		if len(endpoint) == 1 {
-			fail(w, "/ detected. Not acceptable")
+			oldFail(w, "/ detected. Not acceptable")
 			return
 		}
 
@@ -97,13 +97,13 @@ func liquorsHandler(w http.ResponseWriter, req *http.Request) {
 
 	// All valid use starts with /liquors
 	if aEndpoint[0] != "liquors" {
-		fail(w, "All valid use starts with /liquors")
+		oldFail(w, "All valid use starts with /liquors")
 		return
 	}
 
 	// Max valid
 	if len(aEndpoint) > 2 {
-		fail(w, "too many arguments")
+		oldFail(w, "too many arguments")
 		return
 	}
 
@@ -133,7 +133,7 @@ func liquorsHandler(w http.ResponseWriter, req *http.Request) {
 func isGet(w http.ResponseWriter, req *http.Request) bool {
 	if req.Method != "GET" {
 		err := "This only works with GET"
-		fail(w, err)
+		oldFail(w, err)
 		return false
 	}
 	return true
@@ -144,17 +144,32 @@ func isNegative(w http.ResponseWriter, i int) bool {
 
 	if math.Signbit(float64(i)) {
 		err := "Don't be that guy"
-		fail(w, err)
+		oldFail(w, err)
 		return true
 	}
 	return false
 }
 
-func fail(w http.ResponseWriter, err string) {
+func ginIsNegative(c *gin.Context, i int) bool {
+	if math.Signbit(float64(i)) {
+		err := "Don't be that guy"
+		fail(c, err)
+		return true
+	}
+	return false
+}
+
+func oldFail(w http.ResponseWriter, err string) {
 
 	w.WriteHeader(http.StatusInternalServerError)
 
 	fmt.Fprint(w, err)
+
+}
+
+func fail(c *gin.Context, err string) {
+
+	c.String(http.StatusInternalServerError, err)
 
 }
 
@@ -170,7 +185,7 @@ func liquors(w http.ResponseWriter, req *http.Request) {
 
 	if req.Method != "GET" {
 		err := "This only works with GET"
-		fail(w, err)
+		oldFail(w, err)
 		return
 	}
 
@@ -188,11 +203,11 @@ func liquors(w http.ResponseWriter, req *http.Request) {
 
 	*/
 
-	var liquorSlice []sLiquors
+	var liquorSlice []item
 
 	//myLiquors := list.New()
-	for key, value := range mLiquors {
-		item := sLiquors{
+	for key, value := range inventoryMap {
+		item := item{
 			Type:   key,
 			Amount: value,
 		}
@@ -210,15 +225,15 @@ func liquorsType(w http.ResponseWriter, req *http.Request, liquorType string) {
 	if req.Method != "GET" {
 
 		err := "This only works with GET"
-		fail(w, err)
+		oldFail(w, err)
 		return
 	}
 
-	inStock := mLiquors[liquorType]
+	inStock := inventoryMap[liquorType]
 
 	fmt.Println(inStock)
 
-	returnInventory := sLiquors{
+	returnInventory := item{
 		Type:   liquorType,
 		Amount: inStock,
 	}
@@ -240,14 +255,14 @@ func addLiquors(w http.ResponseWriter, req *http.Request) {
 
 	if req.Method != "POST" {
 		err := "This only works with POST"
-		fail(w, err)
+		oldFail(w, err)
 		return
 	}
 
 	body, _ := ioutil.ReadAll(req.Body)
 	req.Body.Close()
 
-	var addRequest sLiquors
+	var addRequest item
 
 	json.Unmarshal([]byte(body), &addRequest)
 
@@ -255,15 +270,9 @@ func addLiquors(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// if math.Signbit(float64(addRequest.Amount)) {
-	// 	err := "Don't be that guy"
-	// 	fail(w, err)
-	// 	return
-	// }
+	inventoryMap[addRequest.Type] += addRequest.Amount
 
-	mLiquors[addRequest.Type] += addRequest.Amount
-
-	addRequest.Amount = mLiquors[addRequest.Type]
+	addRequest.Amount = inventoryMap[addRequest.Type]
 
 	liquorsJson, _ := json.Marshal(addRequest)
 	fmt.Fprint(w, string(liquorsJson))
@@ -294,14 +303,14 @@ func removeLiquors(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "POST" {
 
 		err := "This only works with POST"
-		fail(w, err)
+		oldFail(w, err)
 		return
 	}
 
 	body, _ := ioutil.ReadAll(req.Body)
 	req.Body.Close()
 
-	var removeRequest sLiquors
+	var removeRequest item
 
 	json.Unmarshal([]byte(body), &removeRequest)
 
@@ -316,7 +325,7 @@ func removeLiquors(w http.ResponseWriter, req *http.Request) {
 	// 	return
 	// }
 
-	quantity, exist := mLiquors[removeRequest.Type]
+	quantity, exist := inventoryMap[removeRequest.Type]
 
 	if !exist || (quantity < removeRequest.Amount) {
 		// fmt.Println("We don't have any", removeRequest.Type)
@@ -334,54 +343,151 @@ func removeLiquors(w http.ResponseWriter, req *http.Request) {
 		It does exist and we do have enough
 	*/
 
-	mLiquors[removeRequest.Type] = mLiquors[removeRequest.Type] - removeRequest.Amount
-	fmt.Println("Now we have", removeRequest.Type, mLiquors[removeRequest.Type])
+	inventoryMap[removeRequest.Type] = inventoryMap[removeRequest.Type] - removeRequest.Amount
+	fmt.Println("Now we have", removeRequest.Type, inventoryMap[removeRequest.Type])
 
-	removeRequest.Amount = mLiquors[removeRequest.Type]
+	removeRequest.Amount = inventoryMap[removeRequest.Type]
 
 	liquorsJson, _ := json.Marshal(removeRequest)
 	fmt.Fprint(w, string(liquorsJson))
 }
 
-func ginLiquors(c *gin.Context) {
+func inventoryList(c *gin.Context) {
 
-	c.String(http.StatusOK, "Made it to ginLiquors")
+	var inventorySlice []item
+
+	for key, value := range inventoryMap {
+		item := item{
+			Type:   key,
+			Amount: value,
+		}
+		inventorySlice = append(inventorySlice, item)
+	}
+
+	c.JSON(http.StatusOK, inventorySlice)
+	// c.IndentedJSON(http.StatusOK, inventorySlice)
 
 }
 
-func ginLiquorsType(c *gin.Context) {
+func inventoryType(c *gin.Context) {
+
+	// c.String(http.StatusOK, "Made it to ginLiquorsType")
+
+	// var item item
+	var items []item
+
+	request := c.Param("type")
+
+	for key, value := range inventoryMap {
+		if strings.Contains(key, request) {
+			item := item{
+				Type:   key,
+				Amount: value,
+			}
+			items = append(items, item)
+		}
+	}
+
+	// Should this be an if / else? or an if with return
+	if len(items) == 0 {
+		item := item{
+			Type:   request,
+			Amount: 0,
+		}
+		c.JSON(http.StatusOK, item)
+	} else {
+		c.JSON(http.StatusOK, items)
+	}
+
 	/*
-		/liquors/add and /remove can get here if GET
+		var item item
+		item.Type = c.Param("type")
+		item.Amount = inventoryMap[item.Type]
+		c.JSON(http.StatusOK, item)
 	*/
 
-	c.String(http.StatusOK, "Made it to ginLiquorsType")
+	/*
+		inventory, inStock := inventoryMap[item.Type]
+
+		if inStock {
+			// Reply with type and stock
+			item.Amount = inventory
+			c.JSON(http.StatusOK, item)
+			return
+		}
+
+		s := "We dont, and never did have any: " + item.Type
+		c.JSON(200, s)
+	*/
 
 }
 
-func ginAddLiquors(c *gin.Context) {
+func inventoryAdd(c *gin.Context) {
 
-	c.String(http.StatusOK, "Made it to ginAddLiquors")
+	// c.String(http.StatusOK, "Made it to addInventory")
+	var add item
 
+	if err := c.BindJSON(&add); err != nil {
+		return
+	}
+
+	if ginIsNegative(c, add.Amount) {
+		return
+	}
+
+	inventoryMap[add.Type] += add.Amount
+
+	add.Amount = inventoryMap[add.Type]
+
+	c.JSON(http.StatusOK, add)
 }
 
-func ginRemoveLiquors(c *gin.Context) {
+func inventoryRemove(c *gin.Context) {
 
-	c.String(http.StatusOK, "Made it to ginRemoveLiquors")
+	// c.String(http.StatusOK, "Made it to removeInventory")
 
+	var remove item
+
+	if err := c.BindJSON(&remove); err != nil {
+		return
+	}
+
+	if ginIsNegative(c, remove.Amount) {
+		return
+	}
+
+	quantity, exist := inventoryMap[remove.Type]
+
+	if !exist || (quantity < remove.Amount) {
+		fail(c, "Not Enough Liquor")
+		return
+	}
+
+	inventoryMap[remove.Type] = inventoryMap[remove.Type] - remove.Amount
+	// fmt.Println("Now we have", remove.Type, inventoryMap[remove.Type])
+
+	remove.Amount = inventoryMap[remove.Type]
+
+	// liquorsJson, _ := json.Marshal(remove)
+	// fmt.Fprint(w, string(liquorsJson))
+	c.JSON(http.StatusOK, remove)
 }
 
 func main() {
 
 	router := gin.Default()
-
-	router.GET("/liquors", ginLiquors)
-	router.GET("/liquors/:type", ginLiquorsType)
-	router.POST("/liquors/add", ginAddLiquors)
-	router.POST("/liquors/remove", ginRemoveLiquors)
-
-	// https: //chenyitian.gitbooks.io/gin-web-framework/content/docs/8.html
-
+	router.GET("/liquors", inventoryList)
+	router.GET("/liquors/:type", inventoryType)
+	router.POST("/liquors/add", inventoryAdd)
+	router.POST("/liquors/remove", inventoryRemove)
 	log.Fatal(router.Run(":8090"))
+
+	/*
+		https: //chenyitian.gitbooks.io/gin-web-framework/content/docs/8.html
+		https://earthly.dev/blog/golang-gin-framework/
+		https://stackoverflow.com/questions/48010954/json-response-in-golang-s-gin-returning-as-scrambled-data
+		https://chenyitian.gitbooks.io/gin-web-framework/content/docs/39.html
+	*/
 
 	/*
 		http.HandleFunc("/liquors/add", addLiquors)
