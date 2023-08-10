@@ -2,7 +2,7 @@
 
 ## Description
 
-In this project we will be making an HTTP API to track inventory of liquor in your house. It will be unauthenticated, and will use JSON for response payloads and requests. It will operate on port 8090.
+In this project we will be making an HTTP API to track inventory of liquor in your house. It will be unauthenticated, and will use JSON for response payloads and requests. It will operate on port 8090. Use a routing framework (like gin) to do this.
 
 
 ### Endpoints
