@@ -93,6 +93,7 @@ func inventoryRemove(c *gin.Context) {
 
 	quantity, exist := inventoryMap[remove.Type]
 
+	//Inventory does not exist
 	if !exist || (quantity < remove.Amount) {
 		fail(c, "Not Enough Liquor")
 		return
