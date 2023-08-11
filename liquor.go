@@ -71,6 +71,7 @@ func inventoryAdd(c *gin.Context) {
 
 	if add.Amount < 0 {
 		fail(c, "No negatives")
+		return
 	}
 
 	inventoryMap[add.Type] += add.Amount
@@ -89,6 +90,7 @@ func inventoryRemove(c *gin.Context) {
 
 	if remove.Amount < 0 {
 		fail(c, "No negatives")
+		return
 	}
 
 	quantity, exist := inventoryMap[remove.Type]
