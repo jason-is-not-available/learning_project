@@ -36,7 +36,7 @@ func inventoryList(c *gin.Context) {
 
 func inventoryType(c *gin.Context) {
 
-	request := c.Param("type")
+	request := strings.ToLower(c.Param("type"))
 	var items []item
 
 	for key, value := range inventoryMap {
@@ -73,6 +73,8 @@ func inventoryAdd(c *gin.Context) {
 		fail(c, "No negatives")
 	}
 
+	add.Type = strings.ToLower(add.Type)
+
 	inventoryMap[add.Type] += add.Amount
 	add.Amount = inventoryMap[add.Type]
 
@@ -90,6 +92,8 @@ func inventoryRemove(c *gin.Context) {
 	if remove.Amount < 0 {
 		fail(c, "No negatives")
 	}
+
+	remove.Type = strings.ToLower(remove.Type)
 
 	quantity, exist := inventoryMap[remove.Type]
 
