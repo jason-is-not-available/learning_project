@@ -8,13 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-/*
-type item struct {
-	Type   string
-	Amount int
-}
-*/
-
 type item struct {
 	Type   string `json:"type" binding:"required,lowercase,min=1"`
 	Amount int    `json:"amount" binding:"required,min=0"`
@@ -81,7 +74,6 @@ func inventoryAdd(c *gin.Context) {
 	var add item
 
 	if err := c.BindJSON(&add); err != nil {
-		// c.JSON(500, err)
 		fail(c, "Fuck you. Do it better.")
 		return
 	}
@@ -102,7 +94,8 @@ func inventoryRemove(c *gin.Context) {
 	var remove item
 
 	if err := c.BindJSON(&remove); err != nil {
-		c.JSON(500, err)
+		fail(c, "Fuck you. Do it better.")
+		return
 	}
 
 	if remove.Amount < 0 {
