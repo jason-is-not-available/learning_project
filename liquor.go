@@ -44,7 +44,7 @@ func inventoryList(c *gin.Context) {
 
 func inventoryType(c *gin.Context) {
 
-	request := c.Param("type")
+	request := strings.ToLower(c.Param("type"))
 	var items []item
 
 	for key, value := range inventoryMap {
