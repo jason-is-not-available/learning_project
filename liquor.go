@@ -16,12 +16,9 @@ type item struct {
 */
 
 type item struct {
-	Type string 'json:"type" binding:"required,lowercase,min=1"'
-	Amount int 'json:"amount" binding:"required,min=0"'
+	Type   string `json:"type" binding:"required,lowercase,min=1"`
+	Amount int    `json:"amount" binding:"required,min=0"`
 }
-
-
-
 
 /*
 https://pkg.go.dev/github.com/go-playground/validator/v10#hdr-Baked_In_Validators_and_Tags
@@ -84,7 +81,9 @@ func inventoryAdd(c *gin.Context) {
 	var add item
 
 	if err := c.BindJSON(&add); err != nil {
-		c.JSON(500, err)
+		// c.JSON(500, err)
+		fail(c, "Fuck you. Do it better.")
+		return
 	}
 
 	if add.Amount < 0 {
