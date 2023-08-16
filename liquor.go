@@ -78,11 +78,6 @@ func inventoryAdd(c *gin.Context) {
 		return
 	}
 
-	if add.Amount < 0 {
-		fail(c, "No negatives")
-		return
-	}
-
 	inventoryMap[add.Type] += add.Amount
 	add.Amount = inventoryMap[add.Type]
 
@@ -95,11 +90,6 @@ func inventoryRemove(c *gin.Context) {
 
 	if err := c.BindJSON(&remove); err != nil {
 		fail(c, "Fuck you. Do it better.")
-		return
-	}
-
-	if remove.Amount < 0 {
-		fail(c, "No negatives")
 		return
 	}
 
