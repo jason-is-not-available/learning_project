@@ -9,9 +9,17 @@ import (
 )
 
 type item struct {
-	Type   string
-	Amount int
+	Type   string `json:"type" binding:"required,lowercase,min=1"`
+	Amount int    `json:"amount" binding:"required,min=0"`
 }
+
+/*
+https://pkg.go.dev/github.com/go-playground/validator/v10#hdr-Baked_In_Validators_and_Tags
+https://blog.logrocket.com/gin-binding-in-go-a-tutorial-with-examples/
+https://gin-gonic.com/docs/examples/binding-and-validation/
+https://github.com/gin-gonic/examples/blob/master/file-binding/main.go
+https://stackoverflow.com/questions/73601076/how-to-tell-gin-explicitly-to-bind-a-struct-to-the-request-body-and-nothing-else
+*/
 
 var inventoryMap = map[string]int{
 	"bourbon":      3,
@@ -36,7 +44,7 @@ func inventoryList(c *gin.Context) {
 
 func inventoryType(c *gin.Context) {
 
-	request := c.Param("type")
+	request := strings.ToLower(c.Param("type"))
 	var items []item
 
 	for key, value := range inventoryMap {
@@ -66,7 +74,8 @@ func inventoryAdd(c *gin.Context) {
 	var add item
 
 	if err := c.BindJSON(&add); err != nil {
-		c.JSON(500, err)
+		fail(c, "Fuck you. Do it better.")
+		return
 	}
 
 	if add.Amount < 0 {
@@ -85,7 +94,8 @@ func inventoryRemove(c *gin.Context) {
 	var remove item
 
 	if err := c.BindJSON(&remove); err != nil {
-		c.JSON(500, err)
+		fail(c, "Fuck you. Do it better.")
+		return
 	}
 
 	if remove.Amount < 0 {
