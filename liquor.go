@@ -9,17 +9,9 @@ import (
 )
 
 type item struct {
-	Type   string `json:"type" binding:"required,lowercase,min=1"`
+	Type   string `json:"type" binding:"required,min=1"`
 	Amount int    `json:"amount" binding:"required,min=0"`
 }
-
-/*
-https://pkg.go.dev/github.com/go-playground/validator/v10#hdr-Baked_In_Validators_and_Tags
-https://blog.logrocket.com/gin-binding-in-go-a-tutorial-with-examples/
-https://gin-gonic.com/docs/examples/binding-and-validation/
-https://github.com/gin-gonic/examples/blob/master/file-binding/main.go
-https://stackoverflow.com/questions/73601076/how-to-tell-gin-explicitly-to-bind-a-struct-to-the-request-body-and-nothing-else
-*/
 
 var inventoryMap = map[string]int{
 	"bourbon":      3,
@@ -78,6 +70,11 @@ func inventoryAdd(c *gin.Context) {
 		return
 	}
 
+
+
+	add.Type = strings.ToLower(add.Type)
+
+
 	inventoryMap[add.Type] += add.Amount
 	add.Amount = inventoryMap[add.Type]
 
@@ -93,7 +90,13 @@ func inventoryRemove(c *gin.Context) {
 		return
 	}
 
-	quantity, exist := inventoryMap[remove.Type]
+
+  
+
+	remove.Type = strings.ToLower(remove.Type)
+
+
+  quantity, exist := inventoryMap[remove.Type]
 
 	//Inventory does not exist
 	if !exist || (quantity < remove.Amount) {
