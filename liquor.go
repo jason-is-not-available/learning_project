@@ -1,9 +1,13 @@
 package main
 
 import (
+	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
+
+	_ "github.com/lib/pq"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,13 +17,13 @@ type item struct {
 	Amount int    `json:"amount" binding:"required,min=0"`
 }
 
-/*
-https://pkg.go.dev/github.com/go-playground/validator/v10#hdr-Baked_In_Validators_and_Tags
-https://blog.logrocket.com/gin-binding-in-go-a-tutorial-with-examples/
-https://gin-gonic.com/docs/examples/binding-and-validation/
-https://github.com/gin-gonic/examples/blob/master/file-binding/main.go
-https://stackoverflow.com/questions/73601076/how-to-tell-gin-explicitly-to-bind-a-struct-to-the-request-body-and-nothing-else
-*/
+const (
+	host     = "localhost"
+	port     = 5432
+	user     = "lrsql_user"
+	password = "swordfish"
+	dbname   = "lrsql_pg"
+)
 
 var inventoryMap = map[string]int{
 	"bourbon":      3,
@@ -112,7 +116,62 @@ func fail(c *gin.Context, err string) {
 	c.String(http.StatusInternalServerError, err)
 }
 
+func CheckError(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
+func connectDB() *sql.DB {
+	// connection string
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
+
+	// open database
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
+
+	// check db
+	err = db.Ping()
+	CheckError(err)
+
+	fmt.Println("Connected!")
+
+	return db
+}
+
+func populateTable(db *sql.DB) {
+	query := "select * from liquors"
+	if _, err := db.Query(query); err == nil {
+		fmt.Println("Table appears to exist")
+		// return
+
+	} else {
+
+		fmt.Println("Table does not exist. Creating")
+
+		query = "CREATE TABLE IF NOT EXISTS liquors (type varchar(255) not null UNIQUE, quantity int not null)"
+		_, err := db.Query(query)
+
+		if err != nil {
+			fmt.Println("Error making table")
+		}
+
+		query = "INSERT INTO liquors (type, quantity) VALUES ('bourbon', 5), ('vodka', 4), ('gin', 14), ('tequila', 5000)"
+		_, err = db.Query(query)
+		if err != nil {
+			fmt.Println("Error populating table")
+		}
+	}
+
+}
+
 func main() {
+
+	db := connectDB()
+	defer db.Close()
+
+	populateTable(db)
 
 	router := gin.Default()
 	router.GET("/liquors", inventoryList)
