@@ -17,6 +17,11 @@ type item struct {
 	Amount int    `json:"amount" binding:"required,min=0"`
 }
 
+type dbItem struct {
+	Type   string
+	Amount int
+}
+
 const (
 	host     = "localhost"
 	port     = 5432
@@ -141,29 +146,31 @@ func connectDB() *sql.DB {
 }
 
 func populateTable(db *sql.DB) {
-	query := "select * from liquors"
-	if _, err := db.Query(query); err == nil {
-		fmt.Println("Table appears to exist")
-		// return
 
-	} else {
-
-		fmt.Println("Table does not exist. Creating")
-
-		query = "CREATE TABLE IF NOT EXISTS liquors (type varchar(255) not null UNIQUE, quantity int not null)"
-		_, err := db.Query(query)
-
-		if err != nil {
-			fmt.Println("Error making table")
-		}
-
-		query = "INSERT INTO liquors (type, quantity) VALUES ('bourbon', 5), ('vodka', 4), ('gin', 14), ('tequila', 5000)"
-		_, err = db.Query(query)
-		if err != nil {
-			fmt.Println("Error populating table")
-		}
+	fmt.Println("Create table if")
+	query := "CREATE TABLE IF NOT EXISTS liquors (type varchar(255) not null UNIQUE, quantity int not null)"
+	_, err := db.Query(query)
+	if err != nil {
+		fmt.Println("Error making table")
 	}
 
+	rows, err := db.Query("select * from liquors")
+	if err != nil {
+		fmt.Println("I dunno")
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		// Something exists. Not going to mess with it
+		return
+	}
+
+	fmt.Println("Empty table. Populating")
+	query = "INSERT INTO liquors (type, quantity) VALUES ('bourbon', 5), ('vodka', 4), ('gin', 14), ('tequila', 5000)"
+	_, err = db.Query(query)
+	if err != nil {
+		fmt.Println("Error populating table")
+	}
 }
 
 func main() {
@@ -172,6 +179,8 @@ func main() {
 	defer db.Close()
 
 	populateTable(db)
+
+	// var queryResult []dbItem
 
 	router := gin.Default()
 	router.GET("/liquors", inventoryList)
