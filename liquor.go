@@ -17,11 +17,6 @@ type item struct {
 	Amount int    `json:"amount" binding:"required,min=0"`
 }
 
-type dbItem struct {
-	Type   string
-	Amount int
-}
-
 const (
 	host     = "localhost"
 	port     = 5432
@@ -34,6 +29,53 @@ var inventoryMap = map[string]int{
 	"bourbon":      3,
 	"vodka":        2,
 	"nice bourbon": 1,
+}
+
+// var db *sql.DB = connectDB()
+
+func connectDB() *sql.DB {
+	// connection string
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
+
+	// open database
+	db, err := sql.Open("postgres", psqlconn)
+	CheckError(err)
+
+	// check db
+	err = db.Ping()
+	CheckError(err)
+
+	fmt.Println("Connected!")
+
+	return db
+}
+
+func populateTable(db *sql.DB) {
+
+	fmt.Println("Create table if")
+	query := "CREATE TABLE IF NOT EXISTS liquors (type varchar(255) not null UNIQUE, quantity int not null)"
+	_, err := db.Query(query)
+	if err != nil {
+		fmt.Println("Error making table")
+	}
+
+	rows, err := db.Query("select * from liquors")
+	if err != nil {
+		fmt.Println("I dunno")
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		return
+	}
+
+	fmt.Println("Empty table. Populating")
+	query = "INSERT INTO liquors (type, quantity) VALUES ('bourbon', 5), ('vodka', 4), ('gin', 14), ('tequila', 5000)"
+	_, err = db.Query(query)
+	if err != nil {
+		fmt.Println("Error populating table")
+	}
 }
 
 func inventoryList(c *gin.Context) {
@@ -49,6 +91,37 @@ func inventoryList(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, inventorySlice)
+}
+
+func dbList(db *sql.DB) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		rows, err := db.Query("select * from liquors")
+
+		if err != nil {
+			fmt.Println("error")
+		}
+		defer rows.Close()
+
+		var items []item
+		for rows.Next() {
+			var ty string
+			var am int
+
+			err = rows.Scan(&ty, &am)
+			if err != nil {
+				fmt.Println("error")
+			}
+
+			item := item{
+				Type:   ty,
+				Amount: am,
+			}
+			items = append(items, item)
+		}
+
+		c.JSON(http.StatusOK, items)
+	}
+	return gin.HandlerFunc(fn)
 }
 
 func inventoryType(c *gin.Context) {
@@ -127,52 +200,6 @@ func CheckError(err error) {
 	}
 }
 
-func connectDB() *sql.DB {
-	// connection string
-	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
-
-	// open database
-	db, err := sql.Open("postgres", psqlconn)
-	CheckError(err)
-
-	// check db
-	err = db.Ping()
-	CheckError(err)
-
-	fmt.Println("Connected!")
-
-	return db
-}
-
-func populateTable(db *sql.DB) {
-
-	fmt.Println("Create table if")
-	query := "CREATE TABLE IF NOT EXISTS liquors (type varchar(255) not null UNIQUE, quantity int not null)"
-	_, err := db.Query(query)
-	if err != nil {
-		fmt.Println("Error making table")
-	}
-
-	rows, err := db.Query("select * from liquors")
-	if err != nil {
-		fmt.Println("I dunno")
-	}
-	defer rows.Close()
-
-	if rows.Next() {
-		// Something exists. Not going to mess with it
-		return
-	}
-
-	fmt.Println("Empty table. Populating")
-	query = "INSERT INTO liquors (type, quantity) VALUES ('bourbon', 5), ('vodka', 4), ('gin', 14), ('tequila', 5000)"
-	_, err = db.Query(query)
-	if err != nil {
-		fmt.Println("Error populating table")
-	}
-}
-
 func main() {
 
 	db := connectDB()
@@ -180,10 +207,16 @@ func main() {
 
 	populateTable(db)
 
-	// var queryResult []dbItem
+	/*
+		Is this worth using?
+		https://bun.uptrace.dev/guide/complex-queries.html#parsing-request-params
+	*/
 
 	router := gin.Default()
-	router.GET("/liquors", inventoryList)
+
+	// router.GET("/liquors", inventoryList)
+	router.GET("/liquors", dbList(db))
+
 	router.GET("/liquors/:type", inventoryType)
 	router.POST("/liquors/add", inventoryAdd)
 	router.POST("/liquors/remove", inventoryRemove)
