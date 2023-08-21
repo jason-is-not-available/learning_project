@@ -71,7 +71,7 @@ func populateTable(db *sql.DB) {
 	}
 
 	fmt.Println("Empty table. Populating")
-	query = "INSERT INTO liquors (type, quantity) VALUES ('bourbon', 5), ('vodka', 4), ('gin', 14), ('tequila', 5000)"
+	query = "INSERT INTO liquors (type, quantity) VALUES ('bourbon', 5), ('good bourbon', 7), ('vodka', 4), ('gin', 14), ('tequila', 5000)"
 	_, err = db.Query(query)
 	if err != nil {
 		fmt.Println("Error populating table")
@@ -133,6 +133,7 @@ func inventoryType(c *gin.Context) {
 	}
 
 	// Should this be an if / else? or an if with return
+	// Is this check even needed?
 	if len(items) == 0 {
 		item := item{
 			Type:   request,
@@ -157,6 +158,78 @@ func inventoryAdd(c *gin.Context) {
 	add.Amount = inventoryMap[add.Type]
 
 	c.JSON(http.StatusOK, add)
+}
+
+func dbAdd(db *sql.DB) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+
+		var add item
+		if err := c.BindJSON(&add); err != nil {
+			fail(c, "Add failed. Do it better.")
+			return
+		}
+
+		// st := fmt.Sprintf("select exists(select 1 from liquors where type='%s')", add.Type)
+		// fmt.Println(st)
+		// rows, err := db.Query("select * from liquors")
+		// rows, err := db.Query("select * from liquors where type='%s'", add.Type)
+		// rows, err := db.Query("select exists(select 1 from liquors where type='bourbon')")
+
+		st := fmt.Sprintf("select * from liquors where type='%s'", add.Type)
+
+		rows, err := db.Query(st)
+
+		if err != nil {
+			fmt.Println("Error selecting")
+		}
+		defer rows.Close()
+
+		// var items []inStock
+		var inStock item
+
+		if rows.Next() {
+			err = rows.Scan(&inStock.Type, &inStock.Amount)
+			if err != nil {
+				fmt.Println("error")
+			}
+			// items = append(items, item)
+
+			/*
+				update db and report
+				UPDATE liquors SET quantity = ((SELECT quantity FROM LIQUORS WHERE type = 'bourbon') + 2)
+				update liquors set quantity = 90 where type = 'bourbon';
+
+			*/
+			// st = fmt.Sprintf("UPDATE liquors SET quantity = ((SELECT quantity FROM LIQUORS WHERE type = '%s') + %d)", add.Type, add.Amount)
+			// st = fmt.Sprintf("UPDATE liquors SET quantity = (%d + existing) WHERE type = '%s'", add.Amount, add.Type)
+
+			st = fmt.Sprintf("update liquors set quantity = %d where type = '%s'", add.Amount+inStock.Amount, add.Type)
+			_, err = db.Query(st)
+			if err != nil {
+				fmt.Println("error")
+			}
+
+			inStock.Amount += add.Amount
+		} else {
+			fmt.Println("Didn't have a next")
+
+			// INSERT INTO liquors (type, quantity) VALUES ('bourbon', 5)
+
+			st = fmt.Sprintf("INSERT INTO liquors (type, quantity) VALUES ('%s', %d)", add.Type, add.Amount)
+			_, err = db.Query(st)
+			if err != nil {
+				fmt.Println("error")
+			}
+
+			inStock.Type = add.Type
+			inStock.Amount = add.Amount
+
+		}
+
+		c.JSON(http.StatusOK, inStock)
+
+	}
+	return gin.HandlerFunc(fn)
 }
 
 func inventoryRemove(c *gin.Context) {
@@ -211,7 +284,10 @@ func main() {
 	router.GET("/liquors", dbList(db))
 
 	router.GET("/liquors/:type", inventoryType)
-	router.POST("/liquors/add", inventoryAdd)
+
+	// router.POST("/liquors/add", inventoryAdd)
+	router.POST("/liquors/add", dbAdd(db))
+
 	router.POST("/liquors/remove", inventoryRemove)
 	log.Fatal(router.Run(":8090"))
 }
