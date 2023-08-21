@@ -103,22 +103,15 @@ func dbList(db *sql.DB) gin.HandlerFunc {
 		defer rows.Close()
 
 		var items []item
-		for rows.Next() {
-			var ty string
-			var am int
+		var item item
 
-			err = rows.Scan(&ty, &am)
+		for rows.Next() {
+			err = rows.Scan(&item.Type, &item.Amount)
 			if err != nil {
 				fmt.Println("error")
 			}
-
-			item := item{
-				Type:   ty,
-				Amount: am,
-			}
 			items = append(items, item)
 		}
-
 		c.JSON(http.StatusOK, items)
 	}
 	return gin.HandlerFunc(fn)
