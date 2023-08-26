@@ -31,8 +31,6 @@ var inventoryMap = map[string]int{
 	"nice bourbon": 1,
 }
 
-// var db *sql.DB = connectDB()
-
 func connectDB() *sql.DB {
 	// connection string
 	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
@@ -169,15 +167,7 @@ func dbAdd(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// st := fmt.Sprintf("select exists(select 1 from liquors where type='%s')", add.Type)
-		// fmt.Println(st)
-		// rows, err := db.Query("select * from liquors")
-		// rows, err := db.Query("select * from liquors where type='%s'", add.Type)
-		// rows, err := db.Query("select exists(select 1 from liquors where type='bourbon')")
-
-		st := fmt.Sprintf("select * from liquors where type='%s'", add.Type)
-
-		rows, err := db.Query(st)
+		rows, err := db.Query(`select * from liquors where type = $1`, add.Type)
 
 		if err != nil {
 			fmt.Println("Error selecting")
@@ -192,19 +182,9 @@ func dbAdd(db *sql.DB) gin.HandlerFunc {
 			if err != nil {
 				fmt.Println("error")
 			}
-			// items = append(items, item)
 
-			/*
-				update db and report
-				UPDATE liquors SET quantity = ((SELECT quantity FROM LIQUORS WHERE type = 'bourbon') + 2)
-				update liquors set quantity = 90 where type = 'bourbon';
+			_, err = db.Query(`update liquors set quantity = $1 where type = $2`, add.Amount+inStock.Amount, add.Type)
 
-			*/
-			// st = fmt.Sprintf("UPDATE liquors SET quantity = ((SELECT quantity FROM LIQUORS WHERE type = '%s') + %d)", add.Type, add.Amount)
-			// st = fmt.Sprintf("UPDATE liquors SET quantity = (%d + existing) WHERE type = '%s'", add.Amount, add.Type)
-
-			st = fmt.Sprintf("update liquors set quantity = %d where type = '%s'", add.Amount+inStock.Amount, add.Type)
-			_, err = db.Query(st)
 			if err != nil {
 				fmt.Println("error")
 			}
@@ -213,10 +193,7 @@ func dbAdd(db *sql.DB) gin.HandlerFunc {
 		} else {
 			fmt.Println("Didn't have a next")
 
-			// INSERT INTO liquors (type, quantity) VALUES ('bourbon', 5)
-
-			st = fmt.Sprintf("INSERT INTO liquors (type, quantity) VALUES ('%s', %d)", add.Type, add.Amount)
-			_, err = db.Query(st)
+			_, err = db.Query(`INSERT INTO liquors (type, quantity) VALUES ($1, $2)`, add.Type, add.Amount)
 			if err != nil {
 				fmt.Println("error")
 			}
@@ -274,8 +251,8 @@ func main() {
 	populateTable(db)
 
 	/*
-		Is this worth using?
-		https://bun.uptrace.dev/guide/complex-queries.html#parsing-request-params
+	   Is this worth using?
+	   https://bun.uptrace.dev/guide/complex-queries.html#parsing-request-params
 	*/
 
 	router := gin.Default()
