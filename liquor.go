@@ -160,6 +160,40 @@ func inventoryAdd(c *gin.Context) {
 	c.JSON(http.StatusOK, add)
 }
 
+func quantityByType(item_type string, db *sql.DB) (int, error) {
+
+	var stmt *sql.Stmt
+	var err error
+
+	stmt, err = db.Prepare("SELECT * FROM liquors WHERE type = ?")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()
+
+	var item item
+
+	// err = stmt.QueryRow(item_type).Scan(&item.Type, &item.Amount)
+	rows, err := stmt.Query(item_type)
+	defer rows.Close()
+
+	if rows.Next() {
+		err = rows.Scan(&item.Type, &item.Amount)
+		if err != nil {
+			fmt.Println("error on scan")
+		}
+
+		// if err != nil {
+		// 	if err == sql.ErrNoRows {
+		// 		fmt.Println("Didnt get any rows")
+		// 	}
+		// 	fmt.Println("I dunno")
+		// }
+	}
+	return item.Amount, err
+
+}
+
 func dbAdd(db *sql.DB) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 
@@ -169,15 +203,14 @@ func dbAdd(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// st := fmt.Sprintf("select exists(select 1 from liquors where type='%s')", add.Type)
-		// fmt.Println(st)
-		// rows, err := db.Query("select * from liquors")
-		// rows, err := db.Query("select * from liquors where type='%s'", add.Type)
-		// rows, err := db.Query("select exists(select 1 from liquors where type='bourbon')")
+		how_many, err := quantityByType(add.Type, db)
+
+		fmt.Println(how_many)
 
 		st := fmt.Sprintf("select * from liquors where type='%s'", add.Type)
 
 		rows, err := db.Query(st)
+		// rows, err := db.Query("select * from liquors where type='%s'", add.Type)
 
 		if err != nil {
 			fmt.Println("Error selecting")
@@ -203,7 +236,7 @@ func dbAdd(db *sql.DB) gin.HandlerFunc {
 			// st = fmt.Sprintf("UPDATE liquors SET quantity = ((SELECT quantity FROM LIQUORS WHERE type = '%s') + %d)", add.Type, add.Amount)
 			// st = fmt.Sprintf("UPDATE liquors SET quantity = (%d + existing) WHERE type = '%s'", add.Amount, add.Type)
 
-			st = fmt.Sprintf("update liquors set quantity = %d where type = '%s'", add.Amount+inStock.Amount, add.Type)
+			st := fmt.Sprintf("update liquors set quantity = %d where type = '%s'", add.Amount+inStock.Amount, add.Type)
 			_, err = db.Query(st)
 			if err != nil {
 				fmt.Println("error")
@@ -215,7 +248,7 @@ func dbAdd(db *sql.DB) gin.HandlerFunc {
 
 			// INSERT INTO liquors (type, quantity) VALUES ('bourbon', 5)
 
-			st = fmt.Sprintf("INSERT INTO liquors (type, quantity) VALUES ('%s', %d)", add.Type, add.Amount)
+			st := fmt.Sprintf("INSERT INTO liquors (type, quantity) VALUES ('%s', %d)", add.Type, add.Amount)
 			_, err = db.Query(st)
 			if err != nil {
 				fmt.Println("error")
