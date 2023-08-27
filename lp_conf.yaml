@@ -1,0 +1,13 @@
+name: pg
+services:
+  db:
+    image: postgres:latest
+    command: ["postgres", "-c", "log_statement=all"]
+    volumes:
+      - ./tmp/db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: lrsql_user
+      POSTGRES_PASSWORD: swordfish
+      POSTGRES_DB: lrsql_pg
+    ports:
+      - "5432:5432"

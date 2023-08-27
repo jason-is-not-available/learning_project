@@ -51,51 +51,45 @@ func connectDB() *sql.DB {
 	return db
 }
 
-func populateTable(db *sql.DB) {
+func createTable(db *sql.DB) {
 
-	fmt.Println("Create table if")
 	query := "CREATE TABLE IF NOT EXISTS liquors (type varchar(255) not null UNIQUE, quantity int not null)"
 	_, err := db.Query(query)
 	if err != nil {
 		fmt.Println("Error making table")
 	}
 
-	rows, err := db.Query("select * from liquors")
-	if err != nil {
-		fmt.Println("I dunno")
-	}
-	defer rows.Close()
-
-	if rows.Next() {
-		return
-	}
-
-	fmt.Println("Empty table. Populating")
-	query = "INSERT INTO liquors (type, quantity) VALUES ('bourbon', 5), ('good bourbon', 7), ('vodka', 4), ('gin', 14), ('tequila', 5000)"
-	_, err = db.Query(query)
-	if err != nil {
-		fmt.Println("Error populating table")
-	}
 }
 
-func inventoryList(c *gin.Context) {
-
-	var inventorySlice []item
-
-	for key, value := range inventoryMap {
-		item := item{
-			Type:   key,
-			Amount: value,
-		}
-		inventorySlice = append(inventorySlice, item)
-	}
-
-	c.JSON(http.StatusOK, inventorySlice)
-}
-
-func dbList(db *sql.DB) gin.HandlerFunc {
+func populateTable(db *sql.DB) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
-		rows, err := db.Query("select * from liquors")
+
+		rows, err := db.Query("SELECT * FROM liquors")
+		if err != nil {
+			fmt.Println("I dunno")
+		}
+		defer rows.Close()
+
+		if rows.Next() {
+			c.JSON(http.StatusPreconditionFailed, "Table not empty")
+			return
+		}
+
+		fmt.Println("Empty table. Populating")
+		query := "INSERT INTO liquors (type, quantity) VALUES ('bourbon', 5), ('good bourbon', 7), ('vodka', 4), ('gin', 14), ('tequila', 5000)"
+		_, err = db.Query(query)
+		if err != nil {
+			fmt.Println("Error populating table")
+		}
+		c.JSON(http.StatusOK, "Table populated")
+	}
+	return gin.HandlerFunc(fn)
+
+}
+
+func inventoryList(db *sql.DB) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+		rows, err := db.Query("SELECT * FROM liquors")
 
 		if err != nil {
 			fmt.Println("error")
@@ -117,40 +111,12 @@ func dbList(db *sql.DB) gin.HandlerFunc {
 	return gin.HandlerFunc(fn)
 }
 
-func inventoryType(c *gin.Context) {
-
-	request := strings.ToLower(c.Param("type"))
-	var items []item
-
-	for key, value := range inventoryMap {
-		if strings.Contains(key, request) {
-			item := item{
-				Type:   key,
-				Amount: value,
-			}
-			items = append(items, item)
-		}
-	}
-
-	// Should this be an if / else? or an if with return
-	// Is this check even needed?
-	if len(items) == 0 {
-		item := item{
-			Type:   request,
-			Amount: 0,
-		}
-		c.JSON(http.StatusOK, item)
-	} else {
-		c.JSON(http.StatusOK, items)
-	}
-}
-
-func dbType(db *sql.DB) gin.HandlerFunc {
+func inventoryType(db *sql.DB) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 
 		requestedType := "%" + strings.ToLower(c.Param("type")) + "%"
 
-		rows, err := db.Query(`select * from liquors where type like $1`, requestedType)
+		rows, err := db.Query(`SELECT * FROM liquors WHERE type like $1`, requestedType)
 		if err != nil {
 			fmt.Println("Error querying for types")
 		}
@@ -180,22 +146,7 @@ func dbType(db *sql.DB) gin.HandlerFunc {
 	return gin.HandlerFunc(fn)
 }
 
-func inventoryAdd(c *gin.Context) {
-
-	var add item
-
-	if err := c.BindJSON(&add); err != nil {
-		fail(c, "Fuck you. Do it better.")
-		return
-	}
-
-	inventoryMap[add.Type] += add.Amount
-	add.Amount = inventoryMap[add.Type]
-
-	c.JSON(http.StatusOK, add)
-}
-
-func dbAdd(db *sql.DB) gin.HandlerFunc {
+func inventoryAdd(db *sql.DB) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 
 		var add item
@@ -204,7 +155,7 @@ func dbAdd(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		rows, err := db.Query(`select * from liquors where type = $1`, add.Type)
+		rows, err := db.Query(`SELECT * FROM liquors WHERE type = $1`, add.Type)
 
 		if err != nil {
 			fmt.Println("Error selecting")
@@ -220,7 +171,7 @@ func dbAdd(db *sql.DB) gin.HandlerFunc {
 				fmt.Println("error")
 			}
 
-			_, err = db.Query(`update liquors set quantity = $1 where type = $2`, add.Amount+inStock.Amount, add.Type)
+			_, err = db.Query(`UPDATE liquors SET quantity = $1 where type = $2`, add.Amount+inStock.Amount, add.Type)
 
 			if err != nil {
 				fmt.Println("error")
@@ -246,30 +197,7 @@ func dbAdd(db *sql.DB) gin.HandlerFunc {
 	return gin.HandlerFunc(fn)
 }
 
-func inventoryRemove(c *gin.Context) {
-
-	var remove item
-
-	if err := c.BindJSON(&remove); err != nil {
-		fail(c, "Fuck you. Do it better.")
-		return
-	}
-
-	quantity, exist := inventoryMap[remove.Type]
-
-	//Inventory does not exist
-	if !exist || (quantity < remove.Amount) {
-		fail(c, "Not Enough Liquor")
-		return
-	}
-
-	inventoryMap[remove.Type] = inventoryMap[remove.Type] - remove.Amount
-	remove.Amount = inventoryMap[remove.Type]
-
-	c.JSON(http.StatusOK, remove)
-}
-
-func dbRemove(db *sql.DB) gin.HandlerFunc {
+func inventoryRemove(db *sql.DB) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
 
 		var remove item
@@ -278,7 +206,7 @@ func dbRemove(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 		// Query for object
-		rows, err := db.Query(`select * from liquors where type = $1`, remove.Type)
+		rows, err := db.Query(`SELECT * FROM liquors WHERE type = $1`, remove.Type)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				// No result
@@ -303,7 +231,7 @@ func dbRemove(db *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		_, err = db.Query(`update liquors set quantity = $1 where type = $2`, inStock.Amount, remove.Type)
+		_, err = db.Query(`UPDATE liquors SET quantity = $1 WHERE type = $2`, inStock.Amount, remove.Type)
 		if err != nil {
 			fmt.Println("error")
 		}
@@ -321,6 +249,7 @@ func fail(c *gin.Context, err string) {
 }
 
 func CheckError(err error) {
+
 	if err != nil {
 		panic(err)
 	}
@@ -331,6 +260,7 @@ func main() {
 	db := connectDB()
 	defer db.Close()
 
+	createTable(db)
 	populateTable(db)
 
 	/*
@@ -339,17 +269,10 @@ func main() {
 	*/
 
 	router := gin.Default()
-
-	// router.GET("/liquors", inventoryList)
-	router.GET("/liquors", dbList(db))
-
-	// router.GET("/liquors/:type", inventoryType)
-	router.GET("/liquors/:type", dbType(db))
-
-	// router.POST("/liquors/add", inventoryAdd)
-	router.POST("/liquors/add", dbAdd(db))
-
-	// router.POST("/liquors/remove", inventoryRemove)
-	router.POST("/liquors/remove", dbRemove(db))
+	router.GET("/liquors", inventoryList(db))
+	router.GET("/liquors/:type", inventoryType(db))
+	router.POST("/liquors/add", inventoryAdd(db))
+	router.POST("/liquors/remove", inventoryRemove(db))
+	router.POST("/populate", populateTable(db))
 	log.Fatal(router.Run(":8090"))
 }
