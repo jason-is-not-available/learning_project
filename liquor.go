@@ -25,12 +25,6 @@ const (
 	dbname   = "lrsql_pg"
 )
 
-var inventoryMap = map[string]int{
-	"bourbon":      3,
-	"vodka":        2,
-	"nice bourbon": 1,
-}
-
 // var db *sql.DB = connectDB()
 
 func connectDB() *sql.DB {
@@ -47,7 +41,6 @@ func connectDB() *sql.DB {
 	CheckError(err)
 
 	fmt.Println("Connected!")
-
 	return db
 }
 
@@ -58,7 +51,6 @@ func createTable(db *sql.DB) {
 	if err != nil {
 		fmt.Println("Error making table")
 	}
-
 }
 
 func populateTable(db *sql.DB) gin.HandlerFunc {
@@ -83,8 +75,8 @@ func populateTable(db *sql.DB) gin.HandlerFunc {
 		}
 		c.JSON(http.StatusOK, "Table populated")
 	}
-	return gin.HandlerFunc(fn)
 
+	return gin.HandlerFunc(fn)
 }
 
 func inventoryList(db *sql.DB) gin.HandlerFunc {
@@ -108,6 +100,7 @@ func inventoryList(db *sql.DB) gin.HandlerFunc {
 		}
 		c.JSON(http.StatusOK, items)
 	}
+
 	return gin.HandlerFunc(fn)
 }
 
@@ -141,8 +134,8 @@ func inventoryType(db *sql.DB) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, items)
-
 	}
+
 	return gin.HandlerFunc(fn)
 }
 
@@ -179,8 +172,6 @@ func inventoryAdd(db *sql.DB) gin.HandlerFunc {
 
 			inStock.Amount += add.Amount
 		} else {
-			fmt.Println("Didn't have a next")
-
 			_, err = db.Query(`INSERT INTO liquors (type, quantity) VALUES ($1, $2)`, add.Type, add.Amount)
 			if err != nil {
 				fmt.Println("error")
@@ -188,7 +179,6 @@ func inventoryAdd(db *sql.DB) gin.HandlerFunc {
 
 			inStock.Type = add.Type
 			inStock.Amount = add.Amount
-
 		}
 
 		c.JSON(http.StatusOK, inStock)
@@ -205,11 +195,10 @@ func inventoryRemove(db *sql.DB) gin.HandlerFunc {
 			fail(c, "Fuck you. Do it better.")
 			return
 		}
-		// Query for object
+
 		rows, err := db.Query(`SELECT * FROM liquors WHERE type = $1`, remove.Type)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				// No result
 				fail(c, "Not Enough Liquor")
 			}
 		}
@@ -237,10 +226,9 @@ func inventoryRemove(db *sql.DB) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, inStock)
-
 	}
-	return gin.HandlerFunc(fn)
 
+	return gin.HandlerFunc(fn)
 }
 
 func fail(c *gin.Context, err string) {
