@@ -31,6 +31,8 @@ var inventoryMap = map[string]int{
 	"nice bourbon": 1,
 }
 
+// var db *sql.DB = connectDB()
+
 func connectDB() *sql.DB {
 	// connection string
 	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
@@ -232,6 +234,52 @@ func inventoryRemove(c *gin.Context) {
 	c.JSON(http.StatusOK, remove)
 }
 
+func dbRemove(db *sql.DB) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+
+		var remove item
+		if err := c.BindJSON(&remove); err != nil {
+			fail(c, "Fuck you. Do it better.")
+			return
+		}
+		// Query for object
+		rows, err := db.Query(`select * from liquors where type = $1`, remove.Type)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				// No result
+				fail(c, "Not Enough Liquor")
+			}
+		}
+		defer rows.Close()
+
+		var inStock item
+
+		if rows.Next() {
+			err = rows.Scan(&inStock.Type, &inStock.Amount)
+			if err != nil {
+				fmt.Println("error")
+			}
+		}
+
+		inStock.Amount = inStock.Amount - remove.Amount
+
+		if inStock.Amount < 0 {
+			fail(c, "Not Enough Liquor")
+			return
+		}
+
+		_, err = db.Query(`update liquors set quantity = $1 where type = $2`, inStock.Amount, remove.Type)
+		if err != nil {
+			fmt.Println("error")
+		}
+
+		c.JSON(http.StatusOK, inStock)
+
+	}
+	return gin.HandlerFunc(fn)
+
+}
+
 func fail(c *gin.Context, err string) {
 
 	c.String(http.StatusInternalServerError, err)
@@ -265,6 +313,7 @@ func main() {
 	// router.POST("/liquors/add", inventoryAdd)
 	router.POST("/liquors/add", dbAdd(db))
 
-	router.POST("/liquors/remove", inventoryRemove)
+	// router.POST("/liquors/remove", inventoryRemove)
+	router.POST("/liquors/remove", dbRemove(db))
 	log.Fatal(router.Run(":8090"))
 }
