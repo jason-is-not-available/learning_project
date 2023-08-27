@@ -145,6 +145,41 @@ func inventoryType(c *gin.Context) {
 	}
 }
 
+func dbType(db *sql.DB) gin.HandlerFunc {
+	fn := func(c *gin.Context) {
+
+		requestedType := "%" + strings.ToLower(c.Param("type")) + "%"
+
+		rows, err := db.Query(`select * from liquors where type like $1`, requestedType)
+		if err != nil {
+			fmt.Println("Error querying for types")
+		}
+		defer rows.Close()
+
+		var items []item
+		var item item
+
+		for rows.Next() {
+			err = rows.Scan(&item.Type, &item.Amount)
+			if err != nil {
+				fmt.Println("error")
+			}
+			items = append(items, item)
+		}
+
+		if len(items) == 0 {
+			item.Type = c.Param("type")
+			item.Amount = 0
+			c.JSON(http.StatusOK, item)
+			return
+		}
+
+		c.JSON(http.StatusOK, items)
+
+	}
+	return gin.HandlerFunc(fn)
+}
+
 func inventoryAdd(c *gin.Context) {
 
 	var add item
@@ -308,7 +343,8 @@ func main() {
 	// router.GET("/liquors", inventoryList)
 	router.GET("/liquors", dbList(db))
 
-	router.GET("/liquors/:type", inventoryType)
+	// router.GET("/liquors/:type", inventoryType)
+	router.GET("/liquors/:type", dbType(db))
 
 	// router.POST("/liquors/add", inventoryAdd)
 	router.POST("/liquors/add", dbAdd(db))
