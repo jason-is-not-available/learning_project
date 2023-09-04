@@ -81,8 +81,8 @@ func populateTable(db *sql.DB) gin.HandlerFunc {
 
 func inventoryList(db *sql.DB) gin.HandlerFunc {
 	fn := func(c *gin.Context) {
-		rows, err := db.Query("SELECT * FROM liquors")
 
+		rows, err := db.Query("SELECT * FROM liquors ORDER BY type ASC")
 		if err != nil {
 			fmt.Println("error")
 		}
@@ -109,7 +109,8 @@ func inventoryType(db *sql.DB) gin.HandlerFunc {
 
 		requestedType := "%" + strings.ToLower(c.Param("type")) + "%"
 
-		rows, err := db.Query(`SELECT * FROM liquors WHERE type like $1`, requestedType)
+		rows, err := db.Query(`SELECT * FROM liquors WHERE type like $1
+                            ORDER BY type ASC`, requestedType)
 		if err != nil {
 			fmt.Println("Error querying for types")
 		}
